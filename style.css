@@ -1,0 +1,16 @@
+#container {
+	min-width: 400px;
+	max-width: 600px;
+	width: 80%;
+	margin: auto;
+}
+
+#board td {
+	border: 1px solid #000;
+	padding: 0;
+	border-spacing: 0;
+	width: 25px;
+	height: 25px;
+	line-height: 25px;
+	text-align: center;
+}
