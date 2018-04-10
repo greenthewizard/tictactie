@@ -1,12 +1,19 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>Tic Tac Toe</title>
+	<title>Tic Tac Tie</title>
+	<link rel="stylesheet" type="text/css" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.0/css/bootstrap.min.css">
+	<link href="https://fonts.googleapis.com/css?family=Gaegu|Roboto+Condensed" rel="stylesheet">
 	<link rel="stylesheet" type="text/css" href="style.css">
 </head>
 <body>
 	<div id="container">
-		<div id="board"></div>
+		<h1>Tic Tac Tie</h1>
+		<div id="board-wrapper"></div>
+		<div id="hud">
+			<p id="timer">00:00:00</p>
+			<p><label>Score:</label> <span id="score">0</span></p>
+		</div>
 	</div>
 	<script type="text/javascript" src="tictac.js"></script>
 </body>

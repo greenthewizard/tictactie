@@ -1,13 +1,15 @@
-const dom = (() => {
-	const $board = document.getElementById('board');
-
-	return {
-		$board
-	}
-})();
-
 const gameboard = (() => {
-	let cx = null;
+	let cx = document.querySelector('#board-wrapper');
+	const possibleMatches = [
+		[0, 1, 2],
+		[3, 4, 5],
+		[6, 7, 8],
+		[0, 3, 6],
+		[1, 4, 7],
+		[2, 5, 8],
+		[0, 4, 8],
+		[2, 4, 6]
+	]
 
 	const _render = function() {
 		//cx is DOM element context for render output.
@@ -18,6 +20,7 @@ const gameboard = (() => {
 
 		//generate table
 		let $tbl = document.createElement('table');
+		$tbl.setAttribute('id', 'board');
 		for(let x = 0; x < 3; x++) {
 			let $tr = $tbl.insertRow();
 			for(let y = 0; y < 3; y++) {
@@ -32,25 +35,32 @@ const gameboard = (() => {
 	const _getCellList = function() {
 		let cells = [];
 		cx.querySelectorAll("td").forEach(cell => {
-			cells.push(cell.textContent);
+			cells.push(cell);
 		});
 		return cells;
 	}
 
 	const _match3 = function(x, y, z) {
-		cells = _getCellList();
-		return (cells[x] != "" 
-			&& cells[x] === cells[y] 
-			&& cells[x] === cells[z]
-		);
+		let cells = _getCellList();
+		let cellsText = cells.map(cell => cell.textContent);
+		let match = cellsText[x] != "" 
+			&& cellsText[x] === cellsText[y] 
+			&& cellsText[x] === cellsText[z];
+
+		return match;
+	}
+
+	const _addMatchedClass = function(cellsArray) {
+		let cells = _getCellList();
+		cellsArray.forEach(i => cells[i].classList.add('match'));
 	}
 
 	const _isFull = function() {
-		return _getCellList().includes("");
+		let cellsText = _getCellList().map(cell => cell.textContent);
+		return !cellsText.includes("");
 	}
 
-	const init = function (newCx) {
-		cx = newCx;
+	const init = function () {
 		_render();
 	}
 
@@ -63,16 +73,35 @@ const gameboard = (() => {
 		}
 	}
 
-	gameIsWon = function () {
-		return _match3(0, 1, 2) //Horizontal
-			|| _match3(3, 4, 5)
-			|| _match3(6, 7, 8)
-			|| _match3(0, 3, 6) //Vertical
-			|| _match3(1, 4, 7)
-			|| _match3(2, 5, 8)
-			|| _match3(0, 4, 8) //Diagonal
-			|| _match3(2, 4, 6)
-			|| false
+	const getContext = function () {
+		return cx;
+	}
+
+	const gameIsWon = function () {
+		return possibleMatches.find(match => _match3(...match));
+	}
+
+	const applyMatchedClasses = function () {
+		possibleMatches.map(match => {
+			if (_match3(...match)) {
+				_addMatchedClass(match);
+			}
+		});
+	}
+
+	const gameIsTied = function () {
+		return _isFull();
+	}
+
+	const flash = function () {
+		cx.firstChild.classList.add('tied');
+		setTimeout(() => {
+			cx.firstChild.classList.remove('tied');
+			cx.firstChild.classList.add('fading');
+		})
+		setTimeout(() => {
+			cx.firstChild.classList.remove('fading');
+		}, 1000)
 	}
 
 	const mark = function(symbol, cx) {
@@ -83,7 +112,11 @@ const gameboard = (() => {
 		mark,
 		init,
 		isValidMove,
-		gameIsWon
+		gameIsWon,
+		gameIsTied,
+		getContext,
+		flash,
+		applyMatchedClasses
 	}
 })();
 
@@ -91,6 +124,7 @@ const tictac = (() => {
 	//Private
 	let currentPlayer = 0;
 	let players = [];
+	let currentScore = 0;
 
 	const _Player = function (name, symbol) {
 		return { name, symbol }
@@ -109,8 +143,8 @@ const tictac = (() => {
 			// let p1 = prompt("Player 1, what is your name?");
 			p1 = p1 === "" ? "Unnamed" : p1;
 			p2 = p2 === "" ? "Unnamed" : p2;
-			_addPlayer(p1, "x");
-			_addPlayer(p2, "o");
+			_addPlayer(p1, "X");
+			_addPlayer(p2, "O");
 		}
 	}
 
@@ -129,19 +163,86 @@ const tictac = (() => {
 	}
 })();
 
-gameboard.init(dom.$board);
+const hud = (() => {
+	let score = 0;
+	let $score = document.querySelector("#score");
+	let $timer = document.querySelector("#timer");
+
+	let timer = null;
+	let startTime = 0;
+	let endTime = 0;
+	let timerInterval = null;
+	let started = false;
+
+	const _updateTimer = function () {
+		let currentTime = new Date(Date.now() - startTime);
+		let timeString = currentTime.toISOString().slice(15,21);
+		let $currentTime = document.createTextNode(timeString);
+		
+		$timer.removeChild($timer.firstChild);
+		$timer.appendChild($currentTime);
+	}
+
+	const startTimer = function () {
+		startTime = Date.now();
+		timerInterval = setInterval(_updateTimer);
+		started = true;
+	}
+
+	const stopTimer = function () {
+		clearInterval(timerInterval);
+		endTime = Date.now();
+		started = false;
+	}
+
+	const timeIsStarted = function () {
+		return started;
+	}
+
+	//Public
+	const addToScore = function (num) {
+		score += num;
+		$score.removeChild($score.firstChild);
+
+		let $newScore = document.createTextNode(score.toString());
+		$score.appendChild($newScore);
+	}
+
+	return {
+		addToScore,
+		startTimer,
+		stopTimer,
+		timeIsStarted
+	}
+})();
+
+gameboard.init();
 tictac.newGame();
 
-dom.$board.addEventListener("click", function(e) {
+gameboard.getContext().addEventListener("click", function(e) {
+	if (e.target.tagName != 'TD') {
+		return false;
+	}
+
+	if (!hud.timeIsStarted()) {
+		hud.startTimer();
+	}
+
 	let symbol = tictac.getCurrentPlayer().symbol;
 	let name = tictac.getCurrentPlayer().name;
+
 	if (gameboard.isValidMove(e)) {
 		gameboard.mark(symbol, e);
 
-		if(gameboard.gameIsWon()) {
-			alert(`Game over! ${name} wins!`)
+		} if (gameboard.gameIsWon()) {
+			hud.stopTimer();
+			gameboard.applyMatchedClasses();
+		} else if (gameboard.gameIsTied()) {
+			gameboard.init();
+			gameboard.flash();
+			tictac.newGame();
+			hud.addToScore(1);
 		} else {
 			tictac.nextTurn();
 		}
-	}
 });
