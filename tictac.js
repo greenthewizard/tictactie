@@ -166,7 +166,8 @@ const tictac = (() => {
 	return {
 		newGame,
 		nextTurn,
-		getCurrentPlayer
+		getCurrentPlayer,
+		getPlayers
 	}
 })();
 
@@ -176,14 +177,18 @@ const hud = (() => {
 	let $timer = document.querySelector("#timer");
 	let $nextSymbol = document.querySelector("#next-symbol");
 
-	let timer = null;
 	let startTime = 0;
-	let endTime = 0;
+	const maxTime = 30000;
 	let timerInterval = null;
-	let started = false;
+	let running = false;
 
-	const _updateTimer = function () {
-		let currentTime = new Date(Date.now() - startTime);
+	const _updateTimer = function(fn) {
+		if (timeIsOver()) {
+			stopTimer();
+			fn();
+		}
+		
+		let currentTime = new Date(maxTime - (Date.now() - startTime));
 		let timeString = currentTime.toISOString().slice(15,21);
 		let $currentTime = document.createTextNode(timeString);
 		
@@ -191,20 +196,24 @@ const hud = (() => {
 		$timer.appendChild($currentTime);
 	}
 
-	const startTimer = function () {
+	const startTimer = function(fn) {
 		startTime = Date.now();
-		timerInterval = setInterval(_updateTimer);
-		started = true;
+		running = true;
+		timerInterval = setInterval(() => _updateTimer(fn));
 	}
 
 	const stopTimer = function () {
 		clearInterval(timerInterval);
-		endTime = Date.now();
-		started = false;
+		startTime = Date.now();
+		running = false;
 	}
 
-	const timeIsStarted = function () {
-		return started;
+	const timeIsRunning = function () {
+		return running;
+	}
+
+	const timeIsOver = function() {
+		return new Date(maxTime - (Date.now() - startTime)) < 0;
 	}
 
 	//Public
@@ -227,7 +236,8 @@ const hud = (() => {
 		addToScore,
 		startTimer,
 		stopTimer,
-		timeIsStarted,
+		timeIsRunning,
+		timeIsOver,
 		updateNextSymbol
 	}
 })();
@@ -244,6 +254,8 @@ const keys = {
 	"Numpad3": 8
 }
 
+let round = 0;
+
 gameboard.init();
 tictac.newGame();
 
@@ -256,13 +268,25 @@ document.addEventListener("keydown", (e) => {
 	makeMove(gameboard.getCellByNumber(cellNumber));
 });
 
+function getRandomInt(max) {
+	return Math.floor(Math.random() * Math.floor(max));
+}
+
+function coinFlip() {
+	return Math.random() < 0.5;
+}
+
+function gameOver() {
+	console.log('game over');
+}
+
 function makeMove(node) {
 	if (node.tagName != 'TD') {
 		return false;
 	}
 
-	if (!hud.timeIsStarted()) {
-		hud.startTimer();
+	if (!hud.timeIsRunning()) {
+		hud.startTimer(gameOver);
 	}
 
 	const symbol = tictac.getCurrentPlayer().symbol;
@@ -277,12 +301,27 @@ function makeMove(node) {
 		hud.stopTimer();
 		gameboard.applyMatchedClasses();
 	} else if (gameboard.gameIsTied()) {
-		const randomCell = Math.floor(Math.random() * 8);
 		gameboard.init();
 		gameboard.flash();
-		//Place random symbol on board.
-		gameboard.mark(symbol, gameboard.getCellByNumber(randomCell))
 		tictac.newGame();
 		hud.addToScore(1);
+		round++;
+
+		//Place random symbol on board.
+		const randomCell = getRandomInt(8);
+		const coin = coinFlip();
+		let randomSymbol = tictac.getPlayers()[coin ? 0 : 1].symbol;
+		gameboard.mark(randomSymbol, gameboard.getCellByNumber(randomCell))
+		
+		if (round > 2) {
+			//Place additional random symbol on board.
+			let randomSymbol = tictac.getPlayers()[!coin ? 0 : 1].symbol;
+			let randomCell2 = getRandomInt(8);
+			//if same as first random cell, add random number up to 7.
+			if (randomCell == randomCell2) {
+				randomCell2 = randomCell2 + Math.floor(Math.random() * 7) % 8;
+			}
+			gameboard.mark(randomSymbol, gameboard.getCellByNumber(randomCell2))
+		}
 	}
 };
