@@ -70,6 +70,14 @@ table#board.fading {
 	font-weight: bold;
 }
 
+#hud p {
+	margin: 0;
+}
+
+#next-symbol {
+	font-family: Gaegu;
+}
+
 #score {
 	color: #3ca348;
 }

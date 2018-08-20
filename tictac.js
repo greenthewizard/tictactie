@@ -64,9 +64,9 @@ const gameboard = (() => {
 		_render();
 	}
 
-	const isValidMove = function (cx) {
+	const isValidMove = function (node) {
 		//Returns true if move at node is valid.
-		if (cx.target.firstChild.textContent === "") {
+		if (node.firstChild.textContent === "") {
 			return true;
 		} else {
 			return false;
@@ -104,8 +104,12 @@ const gameboard = (() => {
 		}, 1000)
 	}
 
-	const mark = function(symbol, cx) {
-		cx.target.firstChild.nodeValue = symbol;
+	const mark = function(symbol, node) {
+		node.firstChild.nodeValue = symbol;
+	}
+
+	getCellByNumber = function(n) {
+		return _getCellList()[n];
 	}
 
 	return {
@@ -115,6 +119,7 @@ const gameboard = (() => {
 		gameIsWon,
 		gameIsTied,
 		getContext,
+		getCellByNumber,
 		flash,
 		applyMatchedClasses
 	}
@@ -139,8 +144,6 @@ const tictac = (() => {
 		if (players.length < 1) {
 			let p1;
 			let p2;
-			// let p2 = prompt("Player 2, what is your name?");
-			// let p1 = prompt("Player 1, what is your name?");
 			p1 = p1 === "" ? "Unnamed" : p1;
 			p2 = p2 === "" ? "Unnamed" : p2;
 			_addPlayer(p1, "X");
@@ -156,6 +159,10 @@ const tictac = (() => {
 		return players[currentPlayer];
 	}
 
+	const getPlayers = function() {
+		return players;
+	}
+
 	return {
 		newGame,
 		nextTurn,
@@ -167,6 +174,7 @@ const hud = (() => {
 	let score = 0;
 	let $score = document.querySelector("#score");
 	let $timer = document.querySelector("#timer");
+	let $nextSymbol = document.querySelector("#next-symbol");
 
 	let timer = null;
 	let startTime = 0;
@@ -207,20 +215,49 @@ const hud = (() => {
 		let $newScore = document.createTextNode(score.toString());
 		$score.appendChild($newScore);
 	}
+	
+	const updateNextSymbol = function(symbol) {
+		$nextSymbol.removeChild($nextSymbol.firstChild);
+	
+		let $newSymbol = document.createTextNode(symbol);
+		$nextSymbol.appendChild($newSymbol);
+	}
 
 	return {
 		addToScore,
 		startTimer,
 		stopTimer,
-		timeIsStarted
+		timeIsStarted,
+		updateNextSymbol
 	}
 })();
+
+const keys = {
+	"Numpad7": 0,
+	"Numpad8": 1,
+	"Numpad9": 2,
+	"Numpad4": 3,
+	"Numpad5": 4,
+	"Numpad6": 5,
+	"Numpad1": 6,
+	"Numpad2": 7,
+	"Numpad3": 8
+}
 
 gameboard.init();
 tictac.newGame();
 
-gameboard.getContext().addEventListener("click", function(e) {
-	if (e.target.tagName != 'TD') {
+gameboard.getContext().addEventListener("click", (e) => makeMove(e.target));
+document.addEventListener("keydown", (e) => {
+	const cellNumber = keys[e.code];
+	if (cellNumber === undefined) {
+		return false;
+	}
+	makeMove(gameboard.getCellByNumber(cellNumber));
+});
+
+function makeMove(node) {
+	if (node.tagName != 'TD') {
 		return false;
 	}
 
@@ -228,21 +265,24 @@ gameboard.getContext().addEventListener("click", function(e) {
 		hud.startTimer();
 	}
 
-	let symbol = tictac.getCurrentPlayer().symbol;
-	let name = tictac.getCurrentPlayer().name;
-
-	if (gameboard.isValidMove(e)) {
-		gameboard.mark(symbol, e);
-
-		} if (gameboard.gameIsWon()) {
-			hud.stopTimer();
-			gameboard.applyMatchedClasses();
-		} else if (gameboard.gameIsTied()) {
-			gameboard.init();
-			gameboard.flash();
-			tictac.newGame();
-			hud.addToScore(1);
-		} else {
-			tictac.nextTurn();
-		}
-});
+	const symbol = tictac.getCurrentPlayer().symbol;
+	
+	if (gameboard.isValidMove(node)) {
+		gameboard.mark(symbol, node);
+		tictac.nextTurn();
+		hud.updateNextSymbol(tictac.getCurrentPlayer().symbol);
+	}
+	
+	if (gameboard.gameIsWon()) {
+		hud.stopTimer();
+		gameboard.applyMatchedClasses();
+	} else if (gameboard.gameIsTied()) {
+		const randomCell = Math.floor(Math.random() * 8);
+		gameboard.init();
+		gameboard.flash();
+		//Place random symbol on board.
+		gameboard.mark(symbol, gameboard.getCellByNumber(randomCell))
+		tictac.newGame();
+		hud.addToScore(1);
+	}
+};
